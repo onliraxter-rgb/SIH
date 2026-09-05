@@ -1,0 +1,16 @@
+# Flask / Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+
+# Audio Uploads & DB
+uploads/*
+!uploads/.keep
+voiceguard.db
+
+# Keep the model and dataset for deployment to work out of the box
+# dataset/
+# model/
