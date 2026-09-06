@@ -14,3 +14,7 @@ voiceguard.db
 # Keep the model and dataset for deployment to work out of the box
 # dataset/
 # model/
+
+*.exe
+*_url.txt
+make_html.py

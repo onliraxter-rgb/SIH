@@ -168,6 +168,14 @@ class VoiceGuardDetector:
                 status     = "REAL" if pred == 0 else "FAKE"
                 model_used = "voiceguard_ml"
 
+                # ── Safeguard for Live Mic Noise ──
+                # ElevenLabs pitch variance never exceeds ~50Hz.
+                # If a live mic captures > 55Hz, it's either human or noise (never AI).
+                if status == "FAKE" and pitch_std > 55.0:
+                    status = "REAL"
+                    conf = min(75.0 + pitch_std * 0.1, 98.0)
+                    model_used = "voiceguard_ml (variance override)"
+
             except Exception as e:
                 logger.error(f"Model predict error: {e}")
                 status, conf = self._heuristic(feat_dict)
