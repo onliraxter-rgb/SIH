@@ -10,7 +10,7 @@ import sys
 import pickle
 import warnings
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.preprocessing import StandardScaler
@@ -29,7 +29,7 @@ DATASET_FAKE = os.path.join(os.path.dirname(__file__), "dataset", "fake")
 MODEL_DIR    = os.path.join(os.path.dirname(__file__), "model")
 MODEL_PATH   = os.path.join(MODEL_DIR, "voiceguard.pkl")
 
-FORMATS = (".wav", ".mp3", ".ogg", ".m4a", ".flac", ".webm", ".aac")
+FORMATS = (".wav", ".mp3", ".ogg", ".m4a", ".flac", ".webm", ".aac", ".mp4", ".mpeg")
 
 
 def load_dataset():
@@ -99,15 +99,12 @@ def train():
 
     pipeline = Pipeline([
         ("scaler", StandardScaler()),
-        ("clf", RandomForestClassifier(
-            n_estimators=200,
-            max_depth=None,
-            min_samples_split=2,
-            min_samples_leaf=1,
-            class_weight="balanced",
-            random_state=42,
-            n_jobs=-1,
-        )),
+        ("clf", LogisticRegression(
+            class_weight='balanced',
+            C=0.5,
+            max_iter=1000,
+            random_state=42
+        ))
     ])
 
     pipeline.fit(X_tr, y_tr)

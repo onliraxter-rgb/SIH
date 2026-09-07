@@ -78,7 +78,7 @@ def scan_file():
         return jsonify({"error": "Empty filename"}), 400
 
     filename, filepath = _save_upload(file)
-    result = detector.predict(filepath)
+    result = detector.predict(filepath, source="file_upload")
 
     log_scan(
         filename=file.filename,
@@ -100,7 +100,7 @@ def scan_mic():
 
     file = request.files["audio"]
     filename, filepath = _save_upload(file, prefix="mic")
-    result = detector.predict(filepath)
+    result = detector.predict(filepath, source="live_mic")
 
     log_scan(
         filename="Live Recording",
@@ -160,7 +160,7 @@ def generate_and_analyze():
         f.write(resp.content)
 
     # Analyze
-    result = detector.predict(filepath)
+    result = detector.predict(filepath, source="scam_simulator")
 
     log_scan(
         filename=f"Simulator: {text[:40]}",
@@ -173,6 +173,50 @@ def generate_and_analyze():
     result["audio_url"]      = f"/uploads/{filename}"
     result["generated_text"] = text
     return jsonify(result)
+
+
+@app.route("/api/enroll-real-voice", methods=["POST"])
+def enroll_real_voice():
+    """Save the mic recording into dataset/real/ and retrain the model."""
+    import subprocess, shutil
+    if "audio" not in request.files:
+        return jsonify({"error": "No audio provided"}), 400
+
+    file = request.files["audio"]
+    os.makedirs("dataset/real", exist_ok=True)
+
+    # Count existing enrolled files to avoid overwriting
+    existing = [f for f in os.listdir("dataset/real") if f.startswith("enrolled_live_")]
+    idx = len(existing) + 1
+    out_path = os.path.join("dataset", "real", f"enrolled_live_{idx:03d}.webm")
+    file.save(out_path)
+
+    # Retrain in background
+    try:
+        subprocess.Popen(
+            ["python", "train.py"],
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        # Reload model after a short delay (train.py is fast)
+        import threading, time as _t
+        def reload_model():
+            _t.sleep(18)
+            try:
+                detector.load_model()
+                app.logger.info("Model hot-reloaded after enroll!")
+            except Exception as e:
+                app.logger.error(f"Hot-reload failed: {e}")
+        threading.Thread(target=reload_model, daemon=True).start()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({
+        "success": True,
+        "message": f"Voice enrolled as real sample #{idx}. Model is retraining — takes ~20 seconds.",
+        "enrolled_count": idx
+    })
 
 
 @app.route("/api/history")
